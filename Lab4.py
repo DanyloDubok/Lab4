@@ -2,81 +2,86 @@
 
 import decimal
 
-# Where temperature is stored
-# currently it is a motherboard temperature
-SENSOR_TPL = '/sys/class/thermal/thermal_zone{num}/temp'
-
-def get_temp(sensor_num=0, *, _template=SENSOR_TPL):
-    """Read temperature and return as decimal.
-
-    Note:
-        This call is blocking, but is ought to return fast
-    """
-    # convert to int
-    sensor_num = int(sensor_num)
-    
-    fname = _template.format(num=sensor_num)
-    with open(fname, 'r') as file:
-        val = file.readline().strip()
-
-    # convert value to int, then to decimal
-    val = int(val)
-    # the value we got is temperature * 1000,
-    # thus divide by 1000 to get actual value
-    dec = decimal.Decimal(f'{val}.000') / 1000
-    return dec
-
-
-
-class Sensor:
-    _TEMPLATE = '/sys/class/thermal/thermal_zone{num}/temp'
+class SensorValue:
     _PREC = 3
     
-    def __init__(self, sensor_num=0, *, _tpl=None):
-        sensor_num = int(sensor_num)    # enforce convertability
-
-        # get template through arg or use class-level default
-        tpl = self._TEMPLATE if _tpl is None else _tpl
-        # or (same as)
-        # tpl = _tpl or self._TEMPLATE
-
-        self.sensor = tpl.format(num=sensor_num)
-
     @classmethod
-    def convert_temperature(cls, value):
+    def convert_value(cls, value):
         # convert value to int, then to decimal
         value = int(value)
         # the value we got is temperature * (10 ** PREC),
-        # thus divide by (10 ** PREC) to get actual value
+        # thus divide by (10 ** PREC) to get the actual value
         PREC = cls._PREC
         val = f'{value}.' + '0' * PREC
         dec = decimal.Decimal(val) / (10 ** PREC)
         return dec
     
-    def get_temperature_raw(self):
-        with open(self.sensor, 'r') as file:
-            val = file.readline().strip()
-
-        return val
-
-    def get_temperature(self):
-        # print('calc performed')       # uncomment to check it's cached
-        val = self.get_temperature_raw()
-        return self.convert_temperature(val)
+    def get_raw_value(self):
+        raise NotImplementedError("Subclasses must implement get_raw_value method.")
+    
+    def get_value(self):
+        val = self.get_raw_value()
+        return self.convert_value(val)
 
     @property
-    def temp(self):
-        if not hasattr(self, '_temp'):
-            self._temp = self.get_temperature()
-        return self._temp          
+    def value(self):
+        if not hasattr(self, '_value'):
+            self._value = self.get_value()
+        return self._value
+
+
+class TemperatureSensor(SensorValue):
+    _TEMPLATE = '/sys/class/thermal/thermal_zone{num}/temp'
     
+    def __init__(self, sensor_num=0):
+        super().__init__()
+        sensor_num = int(sensor_num)
+        self.sensor = self._TEMPLATE.format(num=sensor_num)
+
+    def get_raw_value(self):
+        with open(self.sensor, 'r') as file:
+            val = file.readline().strip()
+        return val
+
+
+class MicrophoneLoudnessSensor(SensorValue):
+    # Assuming you have a method to get microphone loudness
+    def get_raw_value(self):
+        # Implement the method to get microphone loudness
+        pass
+
+
+class CameraColorSensor(SensorValue):
+    # Assuming you have a method to get camera color
+    def get_raw_value(self):
+        # Implement the method to get camera color
+        pass
+
+
+class BatteryChargeSensor(SensorValue):
+    # Assuming you have a method to get battery charge level
+    def get_raw_value(self):
+        # Implement the method to get battery charge level
+        pass
+
 
 if __name__ == '__main__':
-    tmp = Sensor()
-    val = tmp.get_temperature_raw()
-    res = tmp.convert_temperature(val)
-    # or
-    res = tmp.temp
-    # or
-    res = Sensor(0).temp
-# Lab4
+    # Example usage for temperature sensor
+    temperature_sensor = TemperatureSensor()
+    temperature_value = temperature_sensor.value
+    print(f"Temperature: {temperature_value} Celsius")
+
+    # Example usage for microphone loudness sensor
+    microphone_sensor = MicrophoneLoudnessSensor()
+    microphone_value = microphone_sensor.value
+    print(f"Microphone Loudness: {microphone_value} dB")
+
+    # Example usage for camera color sensor
+    camera_sensor = CameraColorSensor()
+    camera_value = camera_sensor.value
+    print(f"Camera Color: {camera_value}")
+
+    # Example usage for battery charge sensor
+    battery_sensor = BatteryChargeSensor()
+    battery_value = battery_sensor.value
+    print(f"Battery Charge Level: {battery_value}%")
